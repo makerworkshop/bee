@@ -1,49 +1,67 @@
-#if ARDUINO >= 100
-#include "Arduino.h"
-#else
-#include "WProgram.h"
-#endif
-
-#include <resp.c>
-
-#define EQUALS(X, Y, Z) memcmp(X, Y, Z) == 0
-#define STR2INT(X) atoi((char*) X)
-#define ELEMENT_STR(X, Y) ((X->elements > Y) ? X->element[Y]->str : (unsigned char *)"")
-
-#define BUFLEN 512
-
-class Bee {
-  private:
-    int cursor;
-    unsigned char buf[BUFLEN];
-
-  public:
-    Bee();
-    ~Bee();
-
-    void Step();
-
-    virtual bool Open()=0;
-    virtual bool Read(char *)=0;
-    virtual bool Write(unsigned char *, int)=0;
-    virtual bool Close()=0;
-};
+#include "Bee.h"
+#include "resp.h"
 
 Bee::Bee()
 {
   this->cursor = 0;
 }
 
-void Bee::Step()
+void Bee::replyOK()
+{
+  this->Write((unsigned char *)RESP_OK, 5);
+}
+
+void Bee::replyError()
+{
+  this->Write((unsigned char *)RESP_ERROR, 6);
+}
+
+respObject* Bee::OnMessage(respObject *in)
+{
+  int pin;
+
+  // Basic control commands.
+  if (RESP_EQUAL(RESP_ELEMENT_AT(in, 0), "SET", 3)) {
+    // SET {pin} {ON|OFF}
+    pin = RESP_ATOI(RESP_ELEMENT_AT(in, 1));
+    pinMode(pin, OUTPUT);
+    if (RESP_EQUAL(RESP_ELEMENT_AT(in, 2), "ON", 2)) {
+      digitalWrite(pin, HIGH);
+    } else {
+      digitalWrite(pin, LOW);
+    }
+    return createRespString(RESP_OBJECT_STATUS, "OK");
+  } else if (RESP_EQUAL(RESP_ELEMENT_AT(in, 0), "GET", 3)) {
+    // GET {pin}
+    pin = RESP_ATOI(RESP_ELEMENT_AT(in, 1));
+    pinMode(pin, INPUT);
+    return createRespInteger(digitalRead(pin));
+  } else if (RESP_EQUAL(RESP_ELEMENT_AT(in, 0), "READ", 4)) {
+    // READ {pin}
+    pin = RESP_ATOI(RESP_ELEMENT_AT(in, 1));
+    pinMode(pin, INPUT);
+    return createRespInteger(analogRead(pin));
+  } else if (RESP_EQUAL(RESP_ELEMENT_AT(in, 0), "WRITE", 5)) {
+    // WRITE {pin} {0-255 value}
+    pin = RESP_ATOI(RESP_ELEMENT_AT(in, 1));
+    pinMode(pin, OUTPUT);
+    analogWrite(pin, RESP_ATOI(RESP_ELEMENT_AT(in, 2)));
+    return createRespString(RESP_OBJECT_STATUS, "OK");
+  }
+
+  return NULL;
+}
+
+void Bee::Next()
 {
   /* Listen for new data. */
   int i;
-  char *c;
+  char c;
   int ok;
   bool gotLine;
 
-  respObject *in;
-  respObject *out;
+  respObject *in = NULL;
+  respObject *out = NULL;
 
   gotLine = false;
 
@@ -55,18 +73,21 @@ void Bee::Step()
   }
 
   /* Reading from serial port. */
-  while (this->Read(c)) {
-    this->buf[this->cursor] = *c;
+  for (gotLine = false; !gotLine && this->Read(&c); this->cursor++) {
+
+    if (this->cursor >= BUFLEN) {
+      this->replyError();
+      this->cursor = 0;
+      return;
+    }
+
+    this->buf[this->cursor] = c;
 
     if (this->cursor > 0) {
       if (this->buf[this->cursor] == '\n' && this->buf[this->cursor - 1] == '\r') {
         gotLine = true;
-        this->cursor++;
-        break;
       }
     }
-
-    this->cursor++;
   }
 
   /* Processing line */
@@ -75,56 +96,23 @@ void Bee::Step()
 
     if (ok > 0) {
 
-      int pin;
-      int value;
+      out = this->OnMessage(in);
+      freeRespObject(in);
 
-      out = NULL;
-
-      if (EQUALS(ELEMENT_STR(in, 0), "SET", 3)) {
-        pin = STR2INT(ELEMENT_STR(in, 1));
-        pinMode(pin, OUTPUT);
-        if (EQUALS(ELEMENT_STR(in, 2), "ON", 2)) {
-          digitalWrite(pin, HIGH);
-        } else {
-          digitalWrite(pin, LOW);
-        }
-      } else if (EQUALS(ELEMENT_STR(in, 0), "GET", 3)) {
-        pin = STR2INT(ELEMENT_STR(in, 1));
-        pinMode(pin, INPUT);
-        out = createRespInteger(digitalRead(pin));
-      } else if  (EQUALS(ELEMENT_STR(in, 0), "READ", 4)) {
-        pin = STR2INT(ELEMENT_STR(in, 1));
-        pinMode(pin, INPUT);
-        out = createRespInteger(analogRead(pin));
-      } else if (EQUALS(ELEMENT_STR(in, 0), "WRITE", 5)) {
-        pin = STR2INT(ELEMENT_STR(in, 1));
-        pinMode(pin, OUTPUT);
-
-        value = STR2INT(ELEMENT_STR(in, 2));
-        analogWrite(pin, value);
-      } else {
-        out = createRespString(RESP_OBJECT_ERROR, "UNKNOWN_COMMAND\0");
-      }
-
-      /* Send ackowledgement */
       if (out == NULL) {
-        this->Write((unsigned char *)"+OK\r\n", 5);
+        this->replyOK();
       } else {
         ok = respEncode(out, this->buf);
         if (ok > 0) {
           this->Write(this->buf, ok);
         } else {
-          this->Write((unsigned char *)"-ERROR\r\n", 8);
+          this->replyError();
         }
+        freeRespObject(out);
       }
-
-      freeRespObject(in);
-      freeRespObject(out);
 
       this->cursor = 0;
     }
-
   }
-
 }
 
