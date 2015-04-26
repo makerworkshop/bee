@@ -6,9 +6,10 @@
 
 #include <resp.h>
 
-#define RESP_EQUAL(X, Y, Z)     (memcmp(X, Y, Z) == 0)
-#define RESP_ATOI(X)            atoi((char*)X)
-#define RESP_ELEMENT_AT(X, Y)   ((X->elements > Y) ? X->element[Y]->str : (unsigned char *)"")
+#define RESP_TOKEN_LENGTH_AT(INPUT, INDEX)      ((INDEX < INPUT->elements) ? INPUT->element[INDEX]->len : 0)
+#define RESP_TOKEN_AT(INPUT, INDEX)             ((INDEX < INPUT->elements) ? INPUT->element[INDEX]->str : (unsigned char *)"\0")
+#define RESP_TOKEN_TO_INT(INPUT, INDEX)         atoi((char*) RESP_TOKEN_AT(INPUT, INDEX))
+#define RESP_TOKEN_EQUALS(INPUT, INDEX, CONST)  (memcmp(RESP_TOKEN_AT(INPUT, INDEX), (unsigned char *)CONST, RESP_TOKEN_LENGTH_AT(INPUT, INDEX)) == 0)
 
 #define RESP_OK     "+OK\r\n"
 #define RESP_ERROR  "-ERR\r\n"

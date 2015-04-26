@@ -21,31 +21,31 @@ respObject* Bee::OnMessage(respObject *in)
   int pin;
 
   // Basic control commands.
-  if (RESP_EQUAL(RESP_ELEMENT_AT(in, 0), "SET", 3)) {
+  if (RESP_TOKEN_EQUALS(in, 0, "SET")) {
     // SET {pin} {ON|OFF}
-    pin = RESP_ATOI(RESP_ELEMENT_AT(in, 1));
+    pin = RESP_TOKEN_TO_INT(in, 1);
     pinMode(pin, OUTPUT);
-    if (RESP_EQUAL(RESP_ELEMENT_AT(in, 2), "ON", 2)) {
+    if (RESP_TOKEN_EQUALS(in, 2, "ON")) {
       digitalWrite(pin, HIGH);
     } else {
       digitalWrite(pin, LOW);
     }
     return createRespString(RESP_OBJECT_STATUS, "OK");
-  } else if (RESP_EQUAL(RESP_ELEMENT_AT(in, 0), "GET", 3)) {
+  } else if (RESP_TOKEN_EQUALS(in, 0, "GET")) {
     // GET {pin}
-    pin = RESP_ATOI(RESP_ELEMENT_AT(in, 1));
+    pin = RESP_TOKEN_TO_INT(in, 1);
     pinMode(pin, INPUT);
     return createRespInteger(digitalRead(pin));
-  } else if (RESP_EQUAL(RESP_ELEMENT_AT(in, 0), "READ", 4)) {
+  } else if (RESP_TOKEN_EQUALS(in, 0, "READ")) {
     // READ {pin}
-    pin = RESP_ATOI(RESP_ELEMENT_AT(in, 1));
+    pin = RESP_TOKEN_TO_INT(in, 1);
     pinMode(pin, INPUT);
     return createRespInteger(analogRead(pin));
-  } else if (RESP_EQUAL(RESP_ELEMENT_AT(in, 0), "WRITE", 5)) {
+  } else if (RESP_TOKEN_EQUALS(in, 0, "WRITE")) {
     // WRITE {pin} {0-255 value}
-    pin = RESP_ATOI(RESP_ELEMENT_AT(in, 1));
+    pin = RESP_TOKEN_TO_INT(in, 1);
     pinMode(pin, OUTPUT);
-    analogWrite(pin, RESP_ATOI(RESP_ELEMENT_AT(in, 2)));
+    analogWrite(pin, RESP_TOKEN_TO_INT(in, 2));
     return createRespString(RESP_OBJECT_STATUS, "OK");
   }
 
