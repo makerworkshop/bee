@@ -13,6 +13,11 @@ device that is going to interprete them (see [Hive][3]).
 If you're looking for a more mature (and not human-readable) protocol you
 should try [Firmata][2] first.
 
+## How to install (on Arduino)
+
+Download the latest [.ZIP package][4] and follow the official instructions on
+[importing a .ZIP library][5].
+
 ## License
 
 > Copyright (c) 2015 José Carlos Nieto, https://menteslibres.net/xiam
@@ -39,3 +44,5 @@ should try [Firmata][2] first.
 [1]: http://redis.io/topics/protocol
 [2]: http://www.arduino.cc/en/Reference/Firmata
 [3]: https://github.com/makerworkshop/hive
+[4]: https://github.com/makerworkshop/bee/archive/master.zip
+[5]: http://www.arduino.cc/en/guide/libraries
