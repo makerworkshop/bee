@@ -27,7 +27,7 @@ respObject* Bee::OnMessage(respObject *in)
 {
   int pin;
 
-  if (RESP_TOKEN_EQUALS(in, 0, "SET")) {
+  if (RESP_TOKEN_EQUALS(in, 0, (unsigned char *)"SET")) {
     // SET {pin} {ON|OFF}
     pin = RESP_TOKEN_TO_INT(in, 1);
     pinMode(pin, OUTPUT);
@@ -37,7 +37,7 @@ respObject* Bee::OnMessage(respObject *in)
       digitalWrite(pin, LOW);
     }
     // Returns status OK.
-    return createRespString(RESP_OBJECT_STATUS, "OK");
+    return createRespString(RESP_OBJECT_STATUS, (unsigned char *)"OK");
   } else if (RESP_TOKEN_EQUALS(in, 0, "GET")) {
     // GET {pin}
     pin = RESP_TOKEN_TO_INT(in, 1);
@@ -56,7 +56,7 @@ respObject* Bee::OnMessage(respObject *in)
     pinMode(pin, OUTPUT);
     analogWrite(pin, RESP_TOKEN_TO_INT(in, 2));
     // Returns status OK.
-    return createRespString(RESP_OBJECT_STATUS, "OK");
+    return createRespString(RESP_OBJECT_STATUS, (unsigned char*)"OK");
   }
 
   // If nothing matched, return NULL, a NULL value will be catched by Next and
@@ -68,14 +68,13 @@ respObject* Bee::OnMessage(respObject *in)
 bool Bee::NextMessage()
 {
   int i, ok;
-  char c;
+  unsigned char c;
   bool gotLine;
 
   respObject *in = NULL;
   respObject *out = NULL;
 
   gotLine = false;
-
   // Cleaning initial buffer.
   if (this->cursor == 0) {
     for (i = 0; i < BUFLEN; i++) {
@@ -85,7 +84,6 @@ bool Bee::NextMessage()
 
   // Reading one byte at a time and advancing cursor.
   for (gotLine = false; !gotLine && this->Read(&c); this->cursor++) {
-
     if (this->cursor >= BUFLEN) {
       this->replyError();
       this->cursor = 0;
@@ -93,7 +91,6 @@ bool Bee::NextMessage()
     }
 
     this->buf[this->cursor] = c;
-
     if (this->cursor > 0) {
       if (this->buf[this->cursor] == '\n' && this->buf[this->cursor - 1] == '\r') {
         gotLine = true;
@@ -105,27 +102,34 @@ bool Bee::NextMessage()
   if (gotLine) {
     // Attempt to decode message.
     ok = respDecode(&in, this->buf);
-
-    if (ok > 0) {
-
-      out = this->OnMessage(in);
-      freeRespObject(in);
-
-      if (out == NULL) {
+    if (ok < 0) {
+      Serial.print("RESP: ");
+      Serial.println(ok, DEC);
+      if (ok != RESP_ERROR_INCOMPLETE_MESSAGE) {
+        this->cursor = 0;
         this->replyError();
-      } else {
-        ok = respEncode(out, this->buf);
-        if (ok > 0) {
-          this->Write(this->buf, ok);
-        } else {
-          this->replyError();
-        }
-        freeRespObject(out);
       }
-
-      this->cursor = 0;
-      return true;
+      return false;
     }
+
+    out = this->OnMessage(in);
+    freeRespObject(in);
+    if (out == NULL) {
+      this->cursor = 0;
+      this->replyError();
+      return false;
+    }
+
+    ok = respEncode(out, this->buf);
+    if (ok > 0) {
+      this->Write(this->buf, ok);
+    } else {
+      this->replyError();
+    }
+    freeRespObject(out);
+
+    this->cursor = 0;
+    return true;
   }
 
   return false;

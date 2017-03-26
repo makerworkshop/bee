@@ -12,16 +12,20 @@
 #include <resp.h>
 
 // RESP_TOKEN_LENGTH_AT returns the length of the token at the given index.
-#define RESP_TOKEN_LENGTH_AT(INPUT, INDEX)      ((INDEX < INPUT->elements) ? INPUT->element[INDEX]->len : 0)
+#define RESP_TOKEN_LENGTH_AT(INPUT, INDEX) \
+  ((INDEX < (INPUT)->elements) ? (INPUT)->element[INDEX]->len : 0)
 
 // RESP_TOKEN_AT returns a pointer to the token at the given index.
-#define RESP_TOKEN_AT(INPUT, INDEX)             ((INDEX < INPUT->elements) ? INPUT->element[INDEX]->str : (unsigned char *)"\0")
+#define RESP_TOKEN_AT(INPUT, INDEX) \
+  ((INDEX < (INPUT)->elements) ? (INPUT)->element[INDEX]->str : (unsigned char *)"\0")
 
 // RESP_TOKEN_TO_INT returns the integer value of the token at the given index.
-#define RESP_TOKEN_TO_INT(INPUT, INDEX)         atoi((char*) RESP_TOKEN_AT(INPUT, INDEX))
+#define RESP_TOKEN_TO_INT(INPUT, INDEX) \
+  atoi((const char*) RESP_TOKEN_AT(INPUT, INDEX))
 
 // RESP_TOKEN_EQUALS returns true if the value of the token at the given index
-#define RESP_TOKEN_EQUALS(INPUT, INDEX, CONST)  (memcmp(RESP_TOKEN_AT(INPUT, INDEX), (unsigned char *)CONST, RESP_TOKEN_LENGTH_AT(INPUT, INDEX)) == 0)
+#define RESP_TOKEN_EQUALS(INPUT, INDEX, CONST) \
+  ((INDEX < (INPUT)->elements) && memcmp(RESP_TOKEN_AT(INPUT, INDEX), (unsigned char*)CONST, RESP_TOKEN_LENGTH_AT(INPUT, INDEX)) == 0)
 
 #define RESP_OK     "+OK\r\n"
 #define RESP_ERROR  "-ERR\r\n"
@@ -51,7 +55,7 @@ public:
 
   // Read attempts to read a byte from the communication channel and to write
   // it to <b>. Returns true on success, false otherwise.
-  virtual bool Read(char *b)=0;
+  virtual bool Read(unsigned char *b)=0;
 
   // Write attempts to write <len> bytes to the communication channel, the
   // source for the write is <buf>. Returns true on success, false otherwise.
